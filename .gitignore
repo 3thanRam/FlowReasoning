@@ -4,4 +4,7 @@ __pycache__/
 .env
 checkpoints/
 *.pt
+build/
+dist/
+*.egg-info/
 .DS_Store

@@ -6,15 +6,18 @@ from pathlib import Path
 import torch
 
 DEFAULT_CORPUS = """
-Observation: A reasoning model receives tokens and embeds them into a latent space.
-Assumptions and objectives: The latent state should evolve through several small stable steps before logits are produced.
-Expectation vs reality: If the next-token loss falls, the latent evolution is useful. If it does not, revise the number of steps, capacity, data, or optimisation.
-Revision: Keep the architecture simple, measure diagnostics, and only add complexity when the observations justify it.
+FlowReasoning is a compact language-model experiment. It maps characters to
+vectors, evolves those vectors through a shared latent operator, and predicts the
+next character. Each update is deliberately small so that the latent trajectory
+remains stable.
 
-Observation: Structured reasoning records what the model or researcher can see.
-Assumptions and objectives: It states what must be true and what must be achieved.
-Expectation vs reality: It compares predicted behaviour against measured behaviour.
-Revision: It updates the next experiment instead of pretending the first assumption was perfect.
+The operator mixes information in three ways. Causal attention connects each
+position to its history. A spectral convolution captures longer patterns in the
+sequence. A gated memory carries a summary between updates. After the final
+update, a normalized projection produces logits over the vocabulary.
+
+This bundled text is only a smoke-test corpus. Useful language modelling requires
+a larger dataset, a validation split, and comparison with a strong baseline.
 """.strip()
 
 

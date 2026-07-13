@@ -34,9 +34,9 @@ def train_one_model(config: ProjectConfig, verbose: bool = True) -> dict[str, An
     last_diag: dict[str, Any] = {}
 
     if verbose:
-        print("Observation: training text has", encoded.numel(), "tokens and", tokenizer.vocab_size, "unique symbols")
         print(
-            "Assumptions and objectives: minimise next-token loss while checking that latent flow diagnostics stay finite"
+            f"Training on {encoded.numel():,} tokens | vocabulary={tokenizer.vocab_size} | "
+            f"parameters={count_parameters(model):,} | device={device}"
         )
 
     for step in range(1, config.training_steps + 1):
@@ -60,9 +60,11 @@ def train_one_model(config: ProjectConfig, verbose: bool = True) -> dict[str, An
             diag_text = " ".join(
                 f"{key}={value:.4f}" for key, value in last_diag.items() if isinstance(value, float)
             )
+            elapsed = time.time() - started
             print(
-                f"Expectation vs reality: step={step:5d}/{config.training_steps} "
-                f"loss={last_loss:.4f} perplexity={perplexity:.2f} {diag_text}"
+                f"step {step:5d}/{config.training_steps} | loss {last_loss:.4f} | "
+                f"perplexity {perplexity:.2f} | elapsed {elapsed:.1f}s"
+                + (f" | {diag_text}" if diag_text else "")
             )
 
     ensure_parent_dir(config.model_save_dir)
@@ -87,16 +89,16 @@ def train_one_model(config: ProjectConfig, verbose: bool = True) -> dict[str, An
     result.update(last_diag)
 
     if verbose:
-        print(
-            "Revision: saved checkpoint; next useful revisions are more data, longer training, or comparing single vs paths mode"
-        )
+        print(f"Checkpoint saved to {config.model_save_dir}")
 
     return result
 
 
 def load_checkpoint(path: str, map_location: str | torch.device = "cpu") -> tuple[ProjectConfig, CharTokenizer, FlowReasoningLM]:
     checkpoint = torch.load(path, map_location=map_location)
-    config = ProjectConfig(**checkpoint["config"]).normalize()
+    config_values = dict(checkpoint["config"])
+    config_values["device"] = str(map_location)
+    config = ProjectConfig(**config_values).normalize()
     tokenizer = CharTokenizer.from_dict(checkpoint["tokenizer"])
     model = FlowReasoningLM(config, tokenizer.vocab_size)
     model.load_state_dict(checkpoint["state_dict"])

@@ -1,78 +1,131 @@
 # FlowReasoning
 
-FlowReasoning is a small PyTorch prototype for language modelling with flow-like latent-space evolution.
+An experimental character-level language model that treats depth as an iterative
+evolution of a latent state.
 
-The intended pipeline is:
+Most language models pass activations through a stack of distinct transformer
+blocks. FlowReasoning instead reuses one operator for several small updates:
 
 ```text
-text -> tokens -> latent space -> evolved latent state -> output logits
+tokens -> embeddings -> z₀ -> z₁ -> ... -> zₜ -> next-token logits
 ```
 
-The borrowed/incomplete pieces have been reorganised around `src/core.py`, which contains the latent dynamics engine. The project now includes a runnable character-level tokenizer, training loop, checkpoint format, and generation CLI.
+The project is deliberately small enough to inspect and run on a CPU. It is a
+research prototype, not a claim that latent flow updates outperform a standard
+transformer. Its purpose is to make the architecture easy to experiment with and
+to expose diagnostics for the iterative computation.
 
-## Structured reasoning loop
+## What is implemented
 
-Use this loop when developing the project and reading experiment logs:
+Each update combines:
 
-1. **Observation** — what is visible in the code, data, loss curve, or diagnostics?
-2. **Assumptions and objectives** — what are we assuming, and what are we trying to make happen?
-3. **Expectation vs reality** — what did we expect to happen, and what actually happened?
-4. **Revision** — if expectation and reality differ, revise the assumption, objective, or experiment.
+- causal self-attention with rotary position embeddings;
+- an FFT-based causal sequence mixer;
+- a diagonal complex-valued feature rotation;
+- a gated SwiGLU residual branch; and
+- a learned step size with bounded updates.
 
-The training script prints logs in this style.
+The same operator is reused at every flow step. In `paths` mode, several latent
+trajectories are evolved in parallel and merged with learned weights.
 
-## Architecture
-
-`FlowReasoningLM` in `src/model.py` implements:
-
-1. Token ids are embedded with token and position embeddings.
-2. The latent tensor `z0` is passed into `FlowEvolver`.
-3. `FlowEvolver` applies repeated small latent updates using:
-   - RMS normalisation
-   - FFT-based sequence mixing
-   - causal attention with rotary embeddings
-   - diagonal unitary-style memory
-   - a gated residual MLP
-4. The evolved latent state is normalised and projected to next-token logits.
-
-This is **normalising-flow-like** rather than a strict invertible normalising flow: the latent state evolves through controlled residual steps, but the current prototype does not compute exact inverse maps or log-determinants.
+> **Terminology:** "flow" describes the repeated, controlled evolution of the
+> latent state. The model is not an invertible normalizing flow and does not
+> compute a Jacobian determinant.
 
 ## Quick start
 
-From the project root:
+FlowReasoning requires Python 3.10+ and PyTorch 2.1+.
 
 ```bash
-python main.py train --training-steps 20 --seq-length 64 --batch-size 8 --dim 64 --num-heads 4 --log-interval 5
-python main.py generate --checkpoint checkpoints/flow_reasoning.pt --prompt "Observation:" --max-new-tokens 200
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Short CPU smoke test
+python main.py train \
+  --training-steps 20 \
+  --seq-length 64 \
+  --batch-size 8 \
+  --dim 64 \
+  --num-heads 4
+
+python main.py generate \
+  --checkpoint checkpoints/flow_reasoning.pt \
+  --prompt "The latent state"
 ```
 
-Train on your own text file:
+The built-in corpus only exists to verify the training pipeline. For a meaningful
+experiment, supply a UTF-8 text file:
 
 ```bash
-python main.py train --data-path path/to/text.txt --training-steps 1000 --seq-length 128 --batch-size 16
+python main.py train \
+  --data-path data/corpus.txt \
+  --training-steps 1000 \
+  --seq-length 128 \
+  --batch-size 16
 ```
 
-Try multiple latent reasoning paths:
+To compare a single trajectory with four learned trajectories:
 
 ```bash
-python main.py train --executor-mode paths --num-paths 4 --training-steps 200
+python main.py train --executor-mode paths --num-paths 4
 ```
 
-## Files
+## Architecture
 
-- `config.py` — dataclass configuration and validation.
-- `main.py` — command-line training and generation.
-- `src/core.py` — latent flow/evolver components.
-- `src/model.py` — text model wrapper around the latent flow.
-- `src/data_loading.py` — character tokenizer and batch creation.
-- `src/train.py` — training, checkpointing, and checkpoint loading.
-- `src/utils.py` — seed, parameter count, diagnostics, and formatting helpers.
+```mermaid
+flowchart LR
+    A[Token and position embeddings] --> B[Latent state z₀]
+    B --> C[Shared flow operator]
+    C -->|bounded residual update| C
+    C --> D[Final RMSNorm]
+    D --> E[Tied vocabulary projection]
+    E --> F[Next-token logits]
+```
 
-## Next revisions
+The main implementation lives in [`src/core.py`](src/core.py). `FlowEvolver`
+owns the recurrent update, memory state, and optional path aggregation.
+`FlowReasoningLM` in [`src/model.py`](src/model.py) provides the language-model
+interface and autoregressive generation.
 
-Useful next experiments:
+## Diagnostics
 
-- Compare `--executor-mode single` against `--executor-mode paths --num-paths 4`.
-- Add a validation split and plot loss curves.
-- Add a true invertibility/log-det objective if exact normalising-flow training becomes the goal.
-- Replace the character tokenizer with a BPE tokenizer once the latent flow is stable.
+Training reports cross-entropy loss, perplexity, elapsed time, and latent-update
+statistics. Path mode additionally records:
+
+- normalized weight for each trajectory;
+- variance between latent trajectories; and
+- effective sample size, which indicates whether aggregation uses several paths
+  or collapses onto one.
+
+Checkpoints contain the model configuration, tokenizer vocabulary, parameters,
+final loss, and the latest diagnostics. A checkpoint is therefore self-contained
+for inference; reproducing training also requires the original corpus.
+
+## Development
+
+Install the development extras and run the test suite:
+
+```bash
+pip install -e '.[dev]'
+pytest
+```
+
+The tests cover tokenization, batching, both execution modes, configuration
+validation, and checkpoint round-tripping.
+
+## Current limitations
+
+- Tokenization is character-level, so results are not comparable with modern
+  subword language models.
+- Generation recomputes the full context and does not use a KV cache.
+- The included corpus is a smoke-test fixture, not a training dataset.
+- There is no benchmark against a parameter-matched transformer yet.
+
+These are the next useful directions: add a validation split, compare against a
+small transformer baseline, and measure how path diversity changes during
+training.
+
+## License
+
+[MIT](LICENSE)

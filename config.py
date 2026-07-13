@@ -50,7 +50,7 @@ class ProjectConfig:
 
     # Generation / checkpointing
     model_save_dir: str = "checkpoints/flow_reasoning.pt"
-    prompt: str = "Observation:"
+    prompt: str = "The latent state"
     generate_tokens: int = 200
     temperature: float = 0.9
     top_k: int = 40
@@ -60,6 +60,8 @@ class ProjectConfig:
             self.device = "cuda" if torch.cuda.is_available() else "cpu"
 
         self.num_threads = int(self.num_threads)
+        if self.num_threads < 0:
+            raise ValueError("num_threads must be non-negative")
         if self.num_threads > 0:
             torch.set_num_threads(self.num_threads)
 
@@ -74,6 +76,10 @@ class ProjectConfig:
         self.training_steps = max(1, int(self.training_steps))
         self.log_interval = max(1, int(self.log_interval))
 
+        if self.batch_size <= 0:
+            raise ValueError("batch_size must be positive")
+        if self.num_heads <= 0:
+            raise ValueError("num_heads must be positive")
         if self.dim <= 0:
             raise ValueError("dim must be positive")
         if self.dim % 2 != 0:
@@ -84,6 +90,10 @@ class ProjectConfig:
             raise ValueError("dim / num_heads must be even for rotary embeddings")
         if self.seq_length < 2:
             raise ValueError("seq_length must be at least 2")
+        if not 0.0 <= self.dropout < 1.0:
+            raise ValueError("dropout must be in [0, 1)")
+        if self.learning_rate <= 0:
+            raise ValueError("learning_rate must be positive")
         if self.executor_mode not in {"single", "paths"}:
             raise ValueError("executor_mode must be 'single' or 'paths'")
         if self.executor_mode == "paths" and self.num_paths < 2:

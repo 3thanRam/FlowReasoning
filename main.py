@@ -56,10 +56,14 @@ def config_from_args(args: argparse.Namespace) -> ProjectConfig:
 def run_train(args: argparse.Namespace) -> None:
     config = config_from_args(args)
     result = train_one_model(config, verbose=True)
-    print("\nObservation:", f"final loss={result['loss']:.4f}, perplexity={result['perplexity']:.2f}")
-    print("Assumptions and objectives: the checkpoint is runnable if generation loads and produces logits without shape errors")
-    print("Expectation vs reality: training completed and checkpoint was written to", result["model_path"])
-    print("Revision: try `python main.py generate --checkpoint", result["model_path"], "--prompt \"Observation:\"`")
+    print(
+        f"Finished | loss {result['loss']:.4f} | perplexity {result['perplexity']:.2f} | "
+        f"time {result['seconds']:.1f}s"
+    )
+    print(
+        "Generate with: "
+        f'python main.py generate --checkpoint {result["model_path"]} --prompt "The latent state"'
+    )
 
 
 def run_generate(args: argparse.Namespace) -> None:

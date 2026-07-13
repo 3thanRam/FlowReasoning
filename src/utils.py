@@ -9,6 +9,7 @@ import torch
 
 
 def set_seed(seed: int) -> None:
+    """Seed Python and PyTorch random-number generators."""
     random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
     torch.manual_seed(seed)
@@ -21,10 +22,10 @@ def ensure_parent_dir(path: str | Path) -> None:
 
 
 def count_parameters(model: torch.nn.Module) -> int:
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    return sum(parameter.numel() for parameter in model.parameters() if parameter.requires_grad)
 
 
-def tensor_to_float(value: Any) -> Any:
+def tensor_to_python(value: Any) -> Any:
     if isinstance(value, torch.Tensor):
         if value.numel() == 1:
             return float(value.detach().cpu().item())
@@ -33,20 +34,9 @@ def tensor_to_float(value: Any) -> Any:
 
 
 def diagnostics_to_dict(diagnostics: dict[str, Any]) -> dict[str, Any]:
-    return {key: tensor_to_float(value) for key, value in diagnostics.items() if key != "z_paths"}
-
-
-def format_structured_status(
-    *,
-    observation: str,
-    assumptions_objectives: str,
-    expectation: str,
-    reality: str,
-    revision: str,
-) -> str:
-    return (
-        f"Observation: {observation}\n"
-        f"Assumptions and objectives: {assumptions_objectives}\n"
-        f"Expectation vs reality: {expectation} / {reality}\n"
-        f"Revision: {revision}"
-    )
+    """Convert lightweight diagnostics to checkpoint-safe Python values."""
+    return {
+        key: tensor_to_python(value)
+        for key, value in diagnostics.items()
+        if key != "z_paths"
+    }
