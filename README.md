@@ -11,6 +11,8 @@ tokens -> embeddings -> z₀ -> z₁ -> ... -> zₜ -> next-token logits
 The project is deliberately small enough to inspect and run on a CPU. It is a research prototype, not a claim that latent flow updates outperform a standard
 transformer. Its purpose is to make the architecture easy to experiment with and to expose diagnostics for the iterative computation.
 
+In a three-seed Tiny Shakespeare ablation, four applications of the shared latent operator improved validation BPC from 3.008 ± 0.090 to 2.501 ± 0.019 under the same training-step budget. A four-branch variant was slower and performed worse at 2.670 ± 0.034 BPC. The result supports repeated shared computation in this small experiment but not the learned-branch mechanism.
+
 >**Scope:** The project name refers to iterative latent computation. The current task is next-character prediction and does not constitute a reasoning benchmark.
 
 ## What is implemented
@@ -26,6 +28,40 @@ Each update combines:
 The same operator is reused at every flow step. In `paths` mode, several learned latent branches are initialized with distinct branch embeddings, evolved through the shared operator, and merged using learned sequence-level weights. These branches are architectural components rather than independent Monte Carlo samples.
 
 > **Terminology:** "flow" describes the repeated, controlled evolution of the latent state. The model is not an invertible normalizing flow and does not compute a Jacobian determinant.
+
+## Preliminary architecture comparison
+
+I compared three variants on Tiny Shakespeare using three training seeds
+(11, 22, and 33), a shared contiguous train/validation split, fixed validation
+windows, and the same 3,000-step optimization budget.
+
+| Architecture | Updates | Learned branches | Validation BPC | Wall time |
+|---|---:|---:|---:|---:|
+| Single trajectory | 1 | 1 | 3.0084 ± 0.0900 | 0.2 min |
+| Single trajectory | 4 | 1 | 2.5008 ± 0.0190 | 0.5 min |
+| Learned branches | 4 | 4 | 2.6704 ± 0.0336 | 0.9 min |
+
+Applying the shared latent operator four times reduced validation BPC by
+0.5076 ± 0.0905 relative to applying it once. The improvement occurred for all
+three seeds, although the four-update model required approximately 2.37 times
+the wall-clock time.
+
+Adding four learned branches did not improve the four-update model. It increased
+validation BPC by 0.1696 ± 0.0200 and required approximately 1.74 times the
+wall-clock time of the single-trajectory four-update model. Effective branch
+count ranged from 3.06 to 3.17 on the saved training batches, indicating that
+the aggregation had not simply collapsed onto a single branch.
+
+These results suggest that repeated shared computation was useful in this
+fixed-budget character-model experiment, while the learned-branch mechanism did
+not justify its additional cost.
+
+All configurations selected the final training step as their best checkpoint,
+so the experiment should be interpreted as a fixed-budget comparison rather
+than a converged comparison. Tiny Shakespeare is also small and stylistically
+narrow, and the task measures next-character prediction rather than reasoning
+ability.
+
 
 ## Current status
 

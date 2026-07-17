@@ -8,3 +8,8 @@ build/
 dist/
 *.egg-info/
 .DS_Store
+
+wall_seconds.txt
+logs/
+runs/application/analysis/*
+!runs/application/analysis/RESULTS.md
