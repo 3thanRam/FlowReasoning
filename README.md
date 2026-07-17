@@ -170,9 +170,13 @@ validation, and checkpoint round-tripping.
 - The included corpus is a smoke-test fixture, not a training dataset.
 - There is no benchmark against a parameter-matched transformer yet.
 
-These are the next useful directions: add a validation split, compare against a
-small transformer baseline, and measure how path diversity changes during
-training.
+The next useful directions are:
+
+- compare against a parameter-matched transformer;
+- evaluate on a larger or less stylistically narrow corpus;
+- compute branch diagnostics over held-out validation batches;
+- investigate why learned branches degrade performance;
+- compare models under a matched wall-clock or FLOP budget.
 
 ## License
 
