@@ -22,7 +22,7 @@ def test_checkpoint_round_trip(tmp_path) -> None:
     loaded_config, tokenizer, model = load_checkpoint(str(checkpoint))
     tokens = tokenizer.encode("Flow").unsqueeze(0)
 
-    assert result["model_path"] == str(checkpoint)
+    assert result["best_model_path"] == str(checkpoint)
     assert loaded_config.device == "cpu"
     assert torch.isfinite(model(tokens)).all()
 
