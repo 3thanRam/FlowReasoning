@@ -145,11 +145,10 @@ class FlowOperator(nn.Module):
         self,
         z_original: torch.Tensor,
         z_curr: torch.Tensor,
-        memory: torch.Tensor,
         step_emb: torch.Tensor,
         kernel_fft: torch.Tensor,
     ) -> torch.Tensor:
-        x = self.norm(z_curr + memory + step_emb)
+        x = self.norm(z_curr + step_emb)
         x = self.ssm_mix(x, kernel_fft)
         x = x + self.attn(self.attn_norm(x))
         dz = self.mlp(self.unitary(x))
@@ -159,7 +158,6 @@ class FlowOperator(nn.Module):
 @dataclass
 class FlowResult:
     z: torch.Tensor
-    memory: torch.Tensor
     diagnostics: dict = field(default_factory=dict)
 
 
@@ -184,68 +182,78 @@ class FlowEvolver(nn.Module):
         self.step_gate = nn.Linear(dim, 1)
         self.post_step_norm = RMSNorm(dim)
 
-        self.mem_new = nn.Linear(dim, dim)
-        self.mem_gate = nn.Sequential(nn.Linear(dim, dim), nn.Sigmoid())
-        self.mem_norm = RMSNorm(dim)
-
         self.path_embed = nn.Embedding(64, dim)
         self.path_score = nn.Sequential(nn.Linear(3 * dim, dim), nn.SiLU(), nn.Linear(dim, 1))
         self.path_noise_raw = nn.Parameter(torch.tensor(-5.0))
 
-    def init_memory(self, batch_size: int, seq_len: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
-        return torch.zeros(batch_size, seq_len, self.dim, device=device, dtype=dtype)
 
-    def _step(self, z0: torch.Tensor, z: torch.Tensor, memory: torch.Tensor, kernel_fft: torch.Tensor, step_idx: int) -> tuple[torch.Tensor, torch.Tensor]:
+    def _step(
+        self,
+        z0: torch.Tensor,
+        z: torch.Tensor,
+        kernel_fft: torch.Tensor,
+        step_idx: int,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
         step_idx = min(step_idx, self.max_flow_steps)
-        step_emb = self.step_embed.weight[step_idx].view(1, 1, -1).to(dtype=z.dtype, device=z.device)
-        dz = self.operator(z0, z, memory, step_emb, kernel_fft)
+        step_emb = self.step_embed.weight[step_idx].view(1, 1, -1)
+        step_emb = step_emb.to(dtype=z.dtype, device=z.device)
+
+        dz = self.operator(z0, z, step_emb, kernel_fft)
         dz = torch.clamp(dz, -self.dz_clip, self.dz_clip)
-        step = torch.sigmoid(self.step_gate(z)).mul(self.max_step_size)
-        z_next = self.post_step_norm(z + step * dz)
+
+        step_size = torch.sigmoid(self.step_gate(z)) * self.max_step_size
+        z_next = self.post_step_norm(z + step_size * dz)
         return z_next, dz
 
-    def update_memory(self, z: torch.Tensor, memory: torch.Tensor) -> torch.Tensor:
-        window = min(z.shape[1], 512)
-        ema = F.avg_pool1d(
-            F.pad(z.transpose(1, 2), (window - 1, 0)),
-            kernel_size=window,
-            stride=1,
-        ).transpose(1, 2)
-        gate = self.mem_gate(z)
-        new_mem = self.mem_new(ema)
-        return self.mem_norm((1.0 - gate) * memory + gate * new_mem)
 
-    def forward_single(self, z: torch.Tensor, memory: torch.Tensor | None, flow_steps: int) -> FlowResult:
-        if memory is None:
-            memory = self.init_memory(z.shape[0], z.shape[1], z.device, z.dtype)
-        z0, zc = z, z
+    def forward_single(
+    self,
+    z: torch.Tensor,
+    flow_steps: int,
+    ) -> FlowResult:
+        z0 = z
+        z_current = z
         kernel_fft = self.operator.kernel_fft(z.shape[1], z.device)
         dz_norms = []
-        for i in range(flow_steps):
-            zc, dz = self._step(z0, zc, memory, kernel_fft, i)
+
+        for step_index in range(flow_steps):
+            z_current, dz = self._step(
+                z0,
+                z_current,
+                kernel_fft,
+                step_index,
+            )
             dz_norms.append(dz.pow(2).mean().detach())
-        memory = self.update_memory(zc, memory)
-        return FlowResult(z=zc, memory=memory, diagnostics={"mode": "single", "mean_dz_norm": torch.stack(dz_norms).mean() if dz_norms else None})
+
+        mean_dz_norm = (
+            torch.stack(dz_norms).mean()
+            if dz_norms
+            else torch.zeros((), device=z.device)
+        )
+
+        return FlowResult(
+            z=z_current,
+            diagnostics={
+                "mode": "single",
+                "mean_dz_norm": mean_dz_norm,
+            },
+        )
 
     def forward_paths(
         self,
         z: torch.Tensor,
-        memory: torch.Tensor | None,
         flow_steps: int,
         num_paths: int,
         eval_noise: bool = False,
     ) -> FlowResult:
         if num_paths > self.path_embed.num_embeddings:
             raise ValueError(f"num_paths must be <= {self.path_embed.num_embeddings}")
-        if memory is None:
-            memory = self.init_memory(z.shape[0], z.shape[1], z.device, z.dtype)
 
         bsz, seq_len, dim = z.shape
         kernel_fft = self.operator.kernel_fft(seq_len, z.device)
 
         z0 = z[:, None].expand(bsz, num_paths, seq_len, dim).reshape(bsz * num_paths, seq_len, dim)
         zc = z0.clone()
-        mem = memory[:, None].expand(bsz, num_paths, seq_len, dim).reshape(bsz * num_paths, seq_len, dim)
 
         path_ids = torch.arange(num_paths, device=z.device)
         path_bias = self.path_embed(path_ids).to(dtype=z.dtype).view(1, num_paths, 1, dim)
@@ -256,7 +264,7 @@ class FlowEvolver(nn.Module):
 
         for i in range(flow_steps):
             z_prev = zc
-            zc, dz = self._step(z0, zc, mem, kernel_fft, i)
+            zc, dz = self._step(z0, zc, kernel_fft, i)
             if self.training or eval_noise:
                 zc = zc + noise_scale * torch.randn_like(zc)
             score_in = torch.cat([z_prev.mean(1), zc.mean(1), dz.mean(1)], dim=-1)
@@ -266,13 +274,11 @@ class FlowEvolver(nn.Module):
         logw = logw.view(bsz, num_paths)
         weights = torch.softmax(logw, dim=1)
         z_bar = (weights[:, :, None, None] * z_paths).sum(dim=1)
-        memory = self.update_memory(z_bar, memory)
 
         var = (weights[:, :, None, None] * (z_paths - z_bar[:, None]).pow(2)).sum(dim=1).mean(dim=(1, 2))
         ess = 1.0 / weights.pow(2).sum(dim=1).clamp_min(1e-8)
         return FlowResult(
             z=z_bar,
-            memory=memory,
             diagnostics={
                 "mode": "paths",
                 "path_log_weights": logw.detach(),
@@ -286,15 +292,21 @@ class FlowEvolver(nn.Module):
     def forward(
         self,
         z: torch.Tensor,
-        memory: torch.Tensor | None,
         flow_steps: int,
         mode: ExecutorMode = "single",
         num_paths: int = 1,
         eval_noise: bool = False,
     ) -> FlowResult:
         flow_steps = max(0, min(int(flow_steps), self.max_flow_steps))
+
         if mode == "paths" and num_paths > 1:
-            return self.forward_paths(z, memory, flow_steps, num_paths, eval_noise=eval_noise)
-        return self.forward_single(z, memory, flow_steps)
+            return self.forward_paths(
+                z,
+                flow_steps,
+                num_paths,
+                eval_noise=eval_noise,
+            )
+
+        return self.forward_single(z, flow_steps)
 
 

@@ -14,7 +14,6 @@ from .core import FlowEvolver, RMSNorm
 @dataclass
 class ModelOutput:
     logits: torch.Tensor
-    memory: torch.Tensor | None = None
     diagnostics: dict[str, Any] = field(default_factory=dict)
 
 
@@ -51,7 +50,6 @@ class FlowReasoningLM(nn.Module):
     def forward(
         self,
         tokens: torch.Tensor,
-        memory: torch.Tensor | None = None,
         *,
         return_output: bool = False,
         flow_steps: int | None = None,
@@ -68,15 +66,21 @@ class FlowReasoningLM(nn.Module):
 
         flow = self.evolver(
             z0,
-            memory,
-            flow_steps=self.config.flow_steps if flow_steps is None else flow_steps,
+            flow_steps=(
+                self.config.flow_steps
+                if flow_steps is None
+                else flow_steps
+            ),
             mode=self.config.executor_mode,
             num_paths=self.config.num_paths,
         )
         hidden = self.final_norm(flow.z)
         logits = self.lm_head(hidden)
         if return_output:
-            return ModelOutput(logits=logits, memory=flow.memory, diagnostics=flow.diagnostics)
+            return ModelOutput(
+                logits=logits,
+                diagnostics=flow.diagnostics,
+            )
         return logits
 
     @torch.no_grad()
