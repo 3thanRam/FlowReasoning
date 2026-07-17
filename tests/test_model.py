@@ -38,7 +38,7 @@ def test_multi_path_forward_reports_aggregation_diagnostics() -> None:
 
     assert output.diagnostics["path_weights"].shape == (2, 3)
     assert torch.allclose(output.diagnostics["path_weights"].sum(dim=1), torch.ones(2))
-    assert output.diagnostics["effective_sample_size"].shape == (2,)
+    assert output.diagnostics["effective_branch_count"].shape == (2,)
 
 
 def test_rejects_incompatible_attention_dimensions() -> None:

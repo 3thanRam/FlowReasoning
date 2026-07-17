@@ -25,8 +25,7 @@ Each update combines:
 - a gated SwiGLU residual branch; and
 - a learned step size with bounded updates.
 
-The same operator is reused at every flow step. In `paths` mode, several latent
-trajectories are evolved in parallel and merged with learned weights.
+The same operator is reused at every flow step. In `paths` mode, several learned latent branches are initialized with distinct branch embeddings, evolved through the shared operator, and merged using learned sequence-level weights. These branches are architectural components rather than independent Monte Carlo samples.
 
 > **Terminology:** "flow" describes the repeated, controlled evolution of the
 > latent state. The model is not an invertible normalizing flow and does not
@@ -101,6 +100,8 @@ statistics. Path mode additionally records:
 Checkpoints contain the model configuration, tokenizer vocabulary, parameters,
 final loss, and the latest diagnostics. A checkpoint is therefore self-contained
 for inference; reproducing training also requires the original corpus.
+
+Branch variance and inverse weight concentration describe internal branch diversity. They are not calibrated uncertainty estimates.
 
 ## Development
 

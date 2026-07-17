@@ -276,7 +276,7 @@ class FlowEvolver(nn.Module):
         z_bar = (weights[:, :, None, None] * z_paths).sum(dim=1)
 
         var = (weights[:, :, None, None] * (z_paths - z_bar[:, None]).pow(2)).sum(dim=1).mean(dim=(1, 2))
-        ess = 1.0 / weights.pow(2).sum(dim=1).clamp_min(1e-8)
+        effective_branch_count = 1.0 / weights.pow(2).sum(dim=1).clamp_min(1e-8)
         return FlowResult(
             z=z_bar,
             diagnostics={
@@ -284,7 +284,7 @@ class FlowEvolver(nn.Module):
                 "path_log_weights": logw.detach(),
                 "path_weights": weights.detach(),
                 "latent_path_variance": var.detach(),
-                "effective_sample_size": ess.detach(),
+                "effective_branch_count": effective_branch_count.detach(),
                 "z_paths": z_paths.detach(),
             },
         )
