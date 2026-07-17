@@ -377,7 +377,7 @@ def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
 
 def run_table_markdown(results: list[RunResult]) -> str:
     lines = [
-        "| Run | Seed | Parameters | Best step | Validation BPC | Validation loss | Wall time | Branch variance | Effective branches |",
+        "| Run | Seed | Total instantiated parameters | Best step | Validation BPC | Validation loss | Wall time | Branch variance | Effective branches |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for row in results:
@@ -577,6 +577,7 @@ def build_results_markdown(
         "- Architectures are not compute matched; wall time is reported explicitly.",
         "- Tiny Shakespeare is small and stylistically narrow, so conclusions are preliminary.",
         "- Negative and near-zero findings should be reported rather than hidden.",
+        "- Branch-specific modules are instantiated in every configuration but are inactive in single-trajectory mode; identical total parameter counts therefore do not imply identical active computation."
     ]
 
     if warnings:

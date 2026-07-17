@@ -6,7 +6,7 @@ Lower validation bits per character (BPC) is better. The runs are matched by dat
 
 ## Per-run results
 
-| Run | Seed | Parameters | Best step | Validation BPC | Validation loss | Wall time | Branch variance | Effective branches |
+| Run | Seed | Total instantiated parameters | Best step | Validation BPC | Validation loss | Wall time | Branch variance | Effective branches |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
 | single-1-seed11 | 11 | 397,252 | 3000 | 3.1123 | 2.1573 | 0.2 min | - | - |
 | single-1-seed22 | 22 | 397,252 | 3000 | 2.9545 | 2.0479 | 0.2 min | - | - |

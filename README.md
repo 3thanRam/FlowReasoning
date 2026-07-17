@@ -80,7 +80,7 @@ measure reasoning ability.
 
 ## Quick start
 
-Get tinyshakespear.txt:
+Get Tiny Shakespeare:
 
 ```bash
 mkdir -p data
