@@ -56,13 +56,22 @@ def config_from_args(args: argparse.Namespace) -> ProjectConfig:
 def run_train(args: argparse.Namespace) -> None:
     config = config_from_args(args)
     result = train_one_model(config, verbose=True)
+
     print(
-        f"Finished | loss {result['loss']:.4f} | perplexity {result['perplexity']:.2f} | "
+        f"Finished | "
+        f"train loss {result['training_loss']:.4f} | "
+        f"best validation loss "
+        f"{result['best_validation_loss']:.4f} | "
+        f"validation BPC "
+        f"{result['best_validation_bits_per_character']:.4f} | "
         f"time {result['seconds']:.1f}s"
     )
+
     print(
         "Generate with: "
-        f'python main.py generate --checkpoint {result["model_path"]} --prompt "The latent state"'
+        f'python main.py generate '
+        f'--checkpoint {result["best_model_path"]} '
+        f'--prompt "The latent state"'
     )
 
 

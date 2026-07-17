@@ -29,6 +29,12 @@ class ProjectConfig:
     seq_length: int = 128
     batch_size: int = 16
 
+    # Data / evaluation
+    validation_fraction: float = 0.10
+    validation_seed: int = 10_042
+    evaluation_interval: int = 100
+    evaluation_batches: int = 20
+
     # Latent model
     dim: int = 128
     num_heads: int = 4
@@ -98,6 +104,22 @@ class ProjectConfig:
             raise ValueError("executor_mode must be 'single' or 'paths'")
         if self.executor_mode == "paths" and self.num_paths < 2:
             self.num_paths = 2
+        
+        self.evaluation_interval = int(self.evaluation_interval)
+        self.evaluation_batches = int(self.evaluation_batches)
+        self.validation_seed = int(self.validation_seed)
+        
+        if not 0.0 < self.validation_fraction < 0.5:
+            raise ValueError("validation_fraction must lie in (0, 0.5)")
+
+        if self.validation_seed < 0:
+            raise ValueError("validation_seed must be non-negative")
+
+        if self.evaluation_interval < 1:
+            raise ValueError("evaluation_interval must be positive")
+
+        if self.evaluation_batches < 1:
+            raise ValueError("evaluation_batches must be positive")
 
         save_path = Path(self.model_save_dir)
         if save_path.suffix == "":
