@@ -15,6 +15,8 @@ research prototype, not a claim that latent flow updates outperform a standard
 transformer. Its purpose is to make the architecture easy to experiment with and
 to expose diagnostics for the iterative computation.
 
+>**Scope:** The project name refers to iterative latent computation. The current task is next-character prediction and does not constitute a reasoning benchmark.
+
 ## What is implemented
 
 Each update combines:

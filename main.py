@@ -21,7 +21,7 @@ def _coerce_value(raw: str, current: Any) -> Any:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="FlowReasoning: latent flow-like reasoning language model")
+    parser = argparse.ArgumentParser(description="FlowReasoning: experimental language model with iterative latent-state evolution")
     sub = parser.add_subparsers(dest="command", required=True)
 
     train = sub.add_parser("train", help="Train a character-level FlowReasoning model")
