@@ -1,19 +1,15 @@
 # FlowReasoning
 
-An experimental character-level language model that treats depth as an iterative
-evolution of a latent state.
+An experimental character-level language model that treats depth as an iterative evolution of a latent state.
 
-Most language models pass activations through a stack of distinct transformer
-blocks. FlowReasoning instead reuses one operator for several small updates:
+Most language models pass activations through a stack of distinct transformer blocks. FlowReasoning instead reuses one operator for several small updates:
 
 ```text
 tokens -> embeddings -> z₀ -> z₁ -> ... -> zₜ -> next-token logits
 ```
 
-The project is deliberately small enough to inspect and run on a CPU. It is a
-research prototype, not a claim that latent flow updates outperform a standard
-transformer. Its purpose is to make the architecture easy to experiment with and
-to expose diagnostics for the iterative computation.
+The project is deliberately small enough to inspect and run on a CPU. It is a research prototype, not a claim that latent flow updates outperform a standard
+transformer. Its purpose is to make the architecture easy to experiment with and to expose diagnostics for the iterative computation.
 
 >**Scope:** The project name refers to iterative latent computation. The current task is next-character prediction and does not constitute a reasoning benchmark.
 
@@ -29,9 +25,19 @@ Each update combines:
 
 The same operator is reused at every flow step. In `paths` mode, several learned latent branches are initialized with distinct branch embeddings, evolved through the shared operator, and merged using learned sequence-level weights. These branches are architectural components rather than independent Monte Carlo samples.
 
-> **Terminology:** "flow" describes the repeated, controlled evolution of the
-> latent state. The model is not an invertible normalizing flow and does not
-> compute a Jacobian determinant.
+> **Terminology:** "flow" describes the repeated, controlled evolution of the latent state. The model is not an invertible normalizing flow and does not compute a Jacobian determinant.
+
+## Current status
+
+The repository currently demonstrates that a shared latent operator can be applied repeatedly and that several learned latent branches can be aggregated while exposing branch-level diagnostics.
+
+The included corpus is a smoke-test fixture. No conclusion about language-model
+quality, reasoning ability, or the value of multiple branches is supported
+without a held-out validation split and controlled baselines.
+
+The immediate experimental question is:
+
+> At a comparable training budget, do repeated shared latent updates or learned parallel branches improve held-out next-character prediction over a one-step shared-operator model?
 
 ## Quick start
 
