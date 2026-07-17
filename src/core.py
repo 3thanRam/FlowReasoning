@@ -85,7 +85,7 @@ class StableResidualMLP(nn.Module):
         return self.out_proj(self.act(self.in_proj(x)))
 
 
-class DiagonalUnitaryMemory(nn.Module):
+class PairedFeatureRotation(nn.Module):
     def __init__(self, dim: int):
         super().__init__()
         if dim % 2 != 0:
@@ -109,7 +109,7 @@ class FlowOperator(nn.Module):
         self.norm = RMSNorm(dim)
         self.attn_norm = RMSNorm(dim)
         self.attn = CausalAttention(dim, num_heads)
-        self.unitary = DiagonalUnitaryMemory(dim)
+        self.feature_rotation = PairedFeatureRotation(dim)
         self.mlp = StableResidualMLP(dim)
         self.out_norm = RMSNorm(dim)
 
@@ -151,7 +151,7 @@ class FlowOperator(nn.Module):
         x = self.norm(z_curr + step_emb)
         x = self.ssm_mix(x, kernel_fft)
         x = x + self.attn(self.attn_norm(x))
-        dz = self.mlp(self.unitary(x))
+        dz = self.mlp(self.feature_rotation(x))
         return self.out_norm(dz + 0.01 * z_original)
 
 

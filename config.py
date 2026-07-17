@@ -83,7 +83,7 @@ class ProjectConfig:
         if self.dim <= 0:
             raise ValueError("dim must be positive")
         if self.dim % 2 != 0:
-            raise ValueError("dim must be even; the diagonal unitary memory splits real/imag parts")
+            raise ValueError("dim must be even because the paired-feature rotation uses two-channel blocks")
         if self.dim % self.num_heads != 0:
             raise ValueError("dim must be divisible by num_heads")
         if (self.dim // self.num_heads) % 2 != 0:
