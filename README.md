@@ -80,6 +80,16 @@ measure reasoning ability.
 
 ## Quick start
 
+Get tinyshakespear.txt:
+
+```bash
+mkdir -p data
+curl -L \
+  https://raw.githubusercontent.com/karpathy/char-rnn/master/data/tinyshakespeare/input.txt \
+  -o data/tinyshakespeare.txt
+```
+
+
 FlowReasoning requires Python 3.10+ and PyTorch 2.1+.
 
 ```bash
