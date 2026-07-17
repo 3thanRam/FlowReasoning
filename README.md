@@ -65,15 +65,17 @@ ability.
 
 ## Current status
 
-The repository currently demonstrates that a shared latent operator can be applied repeatedly and that several learned latent branches can be aggregated while exposing branch-level diagnostics.
+The repository includes a deterministic held-out evaluation pipeline and a
+three-seed Tiny Shakespeare architecture ablation.
 
-The included corpus is a smoke-test fixture. No conclusion about language-model
-quality, reasoning ability, or the value of multiple branches is supported
-without a held-out validation split and controlled baselines.
+The experiment supports repeated use of the shared latent operator under the
+tested training budget. It does not support the current learned-branch
+mechanism, which was slower and performed worse than the four-update
+single-trajectory model.
 
-The immediate experimental question is:
-
-> At a comparable training budget, do repeated shared latent updates or learned parallel branches improve held-out next-character prediction over a one-step shared-operator model?
+These findings are preliminary and specific to a small character-level task.
+They do not establish an advantage over standard transformer architectures or
+measure reasoning ability.
 
 ## Quick start
 
@@ -127,7 +129,7 @@ flowchart LR
 ```
 
 The main implementation lives in [`src/core.py`](src/core.py). `FlowEvolver`
-owns the recurrent update, memory state, and optional path aggregation.
+owns the repeated latent update and optional learned-branch aggregation
 `FlowReasoningLM` in [`src/model.py`](src/model.py) provides the language-model
 interface and autoregressive generation.
 
@@ -138,8 +140,9 @@ statistics. Path mode additionally records:
 
 - normalized weight for each trajectory;
 - variance between latent trajectories; and
-- effective sample size, which indicates whether aggregation uses several paths
-  or collapses onto one.
+- effective branch count, an inverse-concentration diagnostic showing whether
+  the learned aggregation distributes weight across several branches or
+  concentrates on one.
 
 Checkpoints contain the model configuration, tokenizer vocabulary, parameters,
 final loss, and the latest diagnostics. A checkpoint is therefore self-contained

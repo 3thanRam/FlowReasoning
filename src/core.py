@@ -89,7 +89,7 @@ class PairedFeatureRotation(nn.Module):
     def __init__(self, dim: int):
         super().__init__()
         if dim % 2 != 0:
-            raise ValueError("dim must be even for diagonal unitary memory")
+            raise ValueError("dim must be even because paired-feature rotation splits the features in half")
         self.half = dim // 2
         self.phases = nn.Parameter(torch.zeros(self.half))
         self.gate_raw = nn.Parameter(torch.tensor(-4.0))

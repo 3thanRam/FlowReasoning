@@ -13,7 +13,7 @@ remains stable.
 
 The operator mixes information in three ways. Causal attention connects each
 position to its history. A spectral convolution captures longer patterns in the
-sequence. A gated memory carries a summary between updates. After the final
+sequence. A paired-feature rotation and gated residual update transform the state at each step. After the final
 update, a normalized projection produces logits over the vocabulary.
 
 This bundled text is only a smoke-test corpus. Useful language modelling requires
