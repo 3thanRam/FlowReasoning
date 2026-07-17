@@ -159,7 +159,7 @@ def train_one_model(
             f"Training tokens: {data.train_tokens.numel():,} | "
             f"validation tokens: {data.validation_tokens.numel():,} | "
             f"vocabulary: {data.tokenizer.vocab_size} | "
-            f"parameters: {count_parameters(model):,} | "
+            f"Total instantiated parameters: {count_parameters(model):,} | "
             f"device: {device}",
             flush=True,
         )

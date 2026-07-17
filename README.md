@@ -62,6 +62,7 @@ than a converged comparison. Tiny Shakespeare is also small and stylistically
 narrow, and the task measures next-character prediction rather than reasoning
 ability.
 
+At every evaluation point, each model was scored on the same 40 fixed sampled validation batches, comprising 40,960 target-character predictions. Windows may overlap; the reported BPC is therefore a deterministic held-out estimate rather than an exhaustive full-split score.
 
 ## Current status
 
